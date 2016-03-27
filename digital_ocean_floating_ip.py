@@ -61,7 +61,6 @@ def main():
         module.fail_json(msg='python-digitalocean >= 1.8 required for this module')
 
     try:
-#        epdb.serve()
         # droplet = digitalocean.FloatingIP(token=module.params['api_token'],
         #                        region_slug=module.params['region_id'])
         # droplet.create()
