@@ -1,20 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# This file is part of Ansible
-#
-# Ansible is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# Ansible is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+# SSL Error: http://stackoverflow.com/questions/29134512/insecureplatformwarning-a-true-sslcontext-object-is-not-available-this-prevent
 import os
 import time
 from distutils.version import LooseVersion
@@ -39,14 +26,25 @@ def main():
             image_id = dict(type='str'),
             size_id = dict(type='str'),
         ),
+        required_together = (
+            ['size_id', 'image_id', 'region_id'],
+        ),
     )
     if not HAS_DO:
         module.fail_json(msg='python-digitalocean >= 1.8 required for this module')
 
     try:
-        core(module)
-    except:
-        module.fail_json(msg=str(sys.exc_info()[0]))
+#        epdb.serve()
+        droplet = digitalocean.Droplet(token=module.params['api_token'],
+                               name=module.params['name'],
+                               region=module.params['region_id'],
+                               image=module.params['image_id'],
+                               size_slug=module.params['size_id'],
+                               backups=False)
+        droplet.create()
+        module.exit_json(changed=True)
+    except Exception, e:
+        module.fail_json(msg=str(e))
 
 # import module snippets
 from ansible.module_utils.basic import *
