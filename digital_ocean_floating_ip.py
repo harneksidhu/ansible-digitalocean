@@ -26,21 +26,35 @@ def core(module):
     except KeyError, e:
         module.fail_json(msg='Unable to load %s' % e.message)
 
-    changed = True
     command = module.params['command']
     state = module.params['state']
 
     if command == 'assign':
         if state in ('present'):
-
+            tmp = {}
 
         elif state in ('absent'):
+            tmp = {}
 
     elif command == 'reserve':
         if state in ('present'):
+            floatingIP = digitalocean.FloatingIP(
+                            token=api_token,
+                            region_slug=getkeyordie('region_id'),
+                         )
+            data = floatingIP.reserve()
+            module.exit_json(changed=True, floating_ip=data.ip)
 
         elif state in ('absent'):
-
+            ip = getkeyordie('ip')
+            manager=digitalocean.Manager(token=api_token)
+            floating_ips = manager.get_all_floating_ips()
+            for floating_ip in floating_ips:
+                if ip == floating_ip.ip:
+                    floating_ip.destroy()
+                    module.exit_json(changed=True)
+            module.exit_json(changed=False)
+    
 
 def main():
     module = AnsibleModule(
@@ -52,24 +66,23 @@ def main():
             id = dict(aliases=['droplet_id'], type='int'),
             region_id = dict(type='str'),
             ip = dict(type='str'),
-            required_one_of = (
-                ['id', 'name'],
-            ),
         ),
+        required_together = (
+            ['command', 'state']
+        ),
+       #  required_if = ([
+       #          ('command','reserve','state','present',['region_id']),
+       #      ]
+       # ),
     )
     if not HAS_DO:
         module.fail_json(msg='python-digitalocean >= 1.8 required for this module')
 
     try:
-        # droplet = digitalocean.FloatingIP(token=module.params['api_token'],
-        #                        region_slug=module.params['region_id'])
-        # droplet.create()
-        # module.exit_json(changed=True)
         core(module)
     except Exception, e:
         module.fail_json(msg=str(e))
 
-# import module snippets
 from ansible.module_utils.basic import *
 
 if __name__ == '__main__':
