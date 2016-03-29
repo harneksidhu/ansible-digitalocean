@@ -14,12 +14,35 @@ except ImportError:
     HAS_DO = False
 
 
+class DOManager(object):
+    manager = None
+
+    @classmethod
+    def setup(cls, api_token):
+        cls.manager = digitalocean.Manager(token=api_token)
+
+    def reserve():
+        return self.manager.get_floating_ip(ip)
+
+
 def core(module):
     def getkeyordie(k):
         v = module.params[k]
         if v is None:
             module.fail_json(msg='Unable to load %s' % k)
         return v
+
+    def getDropletFromIP(droplet_ip, api_token):
+        manager = digitalocean.Manager(token=api_token)
+        droplets = manager.get_all_droplets()
+        for droplet in droplets:
+            if droplet.ip_address == droplet_ip:
+                return droplet
+        module.fail_json(msg='Unable to find droplet with ip %s' % droplet_ip)
+
+    def getDropletFromID(droplet_id, api_token):
+        manager = digitalocean.Manager(token=api_token)
+        manager.get_droplet(droplet_id=droplet_id)
 
     try:
         api_token = module.params['api_token'] or os.environ['DO_API_TOKEN'] or os.environ['DO_API_KEY']
@@ -31,10 +54,25 @@ def core(module):
 
     if command == 'assign':
         if state in ('present'):
-            tmp = {}
+            droplet_ip = module.params['droplet_ip']
+            droplet_id = module.params['droplet_id']
+
+            droplet = None
+            if droplet_ip != None:
+                droplet = getDropletFromIP(droplet_ip, api_token)
+            elif droplet_id != None:
+                droplet = getDropletFromID(droplet_id, api_token)
+            else:
+                module.fail_json(msg='droplet_ip or droplet_id is required')
+
+
 
         elif state in ('absent'):
-            tmp = {}
+            floatingIP = digitalocean.FloatingIP(
+                            token=api_token,
+                            ip=getkeyordie('region_id'),
+                         )
+            floatingIP.unassign()
 
     elif command == 'reserve':
         if state in ('present'):
@@ -63,15 +101,16 @@ def main():
             state = dict(choices=['present', 'absent'], default='present'),
             api_token = dict(aliases=['API_TOKEN'], no_log=True),
             name = dict(type='str'),
-            id = dict(aliases=['droplet_id'], type='int'),
+            droplet_id = dict(type='int'),
+            droplet_ip = dict(type='str'),
             region_id = dict(type='str'),
-            ip = dict(type='str'),
+            floating_ip = dict(type='str'),
         ),
         required_together = (
             ['command', 'state']
         ),
        #  required_if = ([
-       #          ('command','reserve','state','present',['region_id']),
+       #          ('command','assign',['floating_ip']),
        #      ]
        # ),
     )
