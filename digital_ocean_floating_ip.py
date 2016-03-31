@@ -21,8 +21,49 @@ class DOManager(object):
     def setup(cls, api_token):
         cls.manager = digitalocean.Manager(token=api_token)
 
-    def reserve():
-        return self.manager.get_floating_ip(ip)
+    @classmethod
+    def reserveFloatingIP(cls, region_slug):
+        return digitalocean.FloatingIP(token=cls.manager.token, region_slug=region_slug)
+
+    @classmethod
+    def destroyFloatingIP(cls, ip):
+        floatingIP = cls.getFloatingIP(ip)
+        if floatingIP != None:
+            floatingIP.destroy()
+            return floatingIP
+
+    @classmethod
+    def unassignFloatingIP(cls, ip):
+        floatingIP = cls.getFloatingIP(ip)
+        if floatingIP != None:
+            floatingIP.unassign()
+            return floatingIP
+
+    @classmethod
+    def assignFloatingIP(cls, floating_ip, droplet_ip):
+        droplet = cls.getDroplet(droplet_ip)
+        floatingIP = cls.getFloatingIP(floating_ip)
+        if droplet != None and floatingIP != None:
+            floatingIP.assign(droplet.id)
+            return floatingIP
+
+       
+    def getFloatingIP(self, ip):
+        floating_ips = self.manager.get_all_floating_ips()
+        for floating_ip in floating_ips:
+            if ip == floating_ip.ip:
+                return floating_ip
+
+    def getDroplet(self, ip):
+        droplets = self.manager.get_all_droplets()
+        for droplet in droplets:
+            if droplet.ip_address == droplet_ip:
+                return droplet
+
+    def getDroplet(self, droplet_ip, droplet_id):
+        if droplet_id != None:
+
+
 
 
 def core(module):
@@ -52,46 +93,37 @@ def core(module):
     command = module.params['command']
     state = module.params['state']
 
+    epdb.serve()
+    DOManager.setup(api_token)
+
     if command == 'assign':
-        if state in ('present'):
-            droplet_ip = module.params['droplet_ip']
-            droplet_id = module.params['droplet_id']
+        if state == 'present':
+            dropletIP = getkeyordie('droplet_ip')
+            floatingIP = getkeyordie('floating_ip')
+            data = DOManager.assignFloatingIP(floatingIP, dropletIP)
 
-            droplet = None
-            if droplet_ip != None:
-                droplet = getDropletFromIP(droplet_ip, api_token)
-            elif droplet_id != None:
-                droplet = getDropletFromID(droplet_id, api_token)
+
+        elif state == 'absent':
+            ip = getkeyordie('floating_ip')
+            floatingIP = DOManager.unassignFloatingIP(ip) 
+            if floatingIP:
+                module.exit_json(changed=True, floating_ip=floatingIP.ip)
             else:
-                module.fail_json(msg='droplet_ip or droplet_id is required')
-
-
-
-        elif state in ('absent'):
-            floatingIP = digitalocean.FloatingIP(
-                            token=api_token,
-                            ip=getkeyordie('region_id'),
-                         )
-            floatingIP.unassign()
+                module.exit_json(changed=False)
 
     elif command == 'reserve':
-        if state in ('present'):
-            floatingIP = digitalocean.FloatingIP(
-                            token=api_token,
-                            region_slug=getkeyordie('region_id'),
-                         )
-            data = floatingIP.reserve()
+        if state == 'present':
+            regionID = getkeyordie('region_id')
+            data = DOManager.reserveFloatingIP(regionID)
             module.exit_json(changed=True, floating_ip=data.ip)
 
-        elif state in ('absent'):
-            ip = getkeyordie('ip')
-            manager=digitalocean.Manager(token=api_token)
-            floating_ips = manager.get_all_floating_ips()
-            for floating_ip in floating_ips:
-                if ip == floating_ip.ip:
-                    floating_ip.destroy()
-                    module.exit_json(changed=True)
-            module.exit_json(changed=False)
+        elif state == 'absent':
+            ip = getkeyordie('floating_ip')
+            floatingIP = DOManager.destroyFloatingIP(ip) 
+            if floatingIP:
+                module.exit_json(changed=True, floating_ip=floatingIP.ip)
+            else:
+                module.exit_json(changed=False)
     
 
 def main():
@@ -101,7 +133,6 @@ def main():
             state = dict(choices=['present', 'absent'], default='present'),
             api_token = dict(aliases=['API_TOKEN'], no_log=True),
             name = dict(type='str'),
-            droplet_id = dict(type='int'),
             droplet_ip = dict(type='str'),
             region_id = dict(type='str'),
             floating_ip = dict(type='str'),
