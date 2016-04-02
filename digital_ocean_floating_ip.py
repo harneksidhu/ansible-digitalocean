@@ -39,7 +39,7 @@ class DOManager(object):
         if floating_ip != None and floating_ip.droplet != None:
             action = floating_ip.unassign()
             action_id = action['action']['id']
-            if poll_action(action_id) == True:
+            if cls.poll_action(action_id) == True:
                 return floating_ip
             else:
                 raise Exception('Unable to unassign Floating IP')
@@ -49,12 +49,12 @@ class DOManager(object):
         droplet = cls.get_droplet(droplet_ip)
         floating_ip = cls.get_floating_ip(floating_ip)
         if droplet != None and floating_ip != None:
-            if floating_ip.droplet != None and floating_ip.droplet['networks']['v4'][0]['ip_address'] = droplet.ip_address:
+            if floating_ip.droplet != None and floating_ip.droplet['networks']['v4'][0]['ip_address'] == droplet.ip_address:
                 return None
             else:
                 action = floating_ip.assign(droplet.id)
                 action_id = action['action']['id']
-                if poll_action(action_id) == True:
+                if cls.poll_action(action_id) == True:
                     return floating_ip
                 else:
                     raise Exception('Unable to assign Floating IP')
@@ -63,26 +63,30 @@ class DOManager(object):
         elif floating_ip == None:
             raise Exception('Floating IP is not found')
        
-    def get_floating_ip(self, ip):
-        try:
-            return digitalocean.FloatingIP.get_object(token=self.manager.token,ip=ip)
-        except:
-            return None
+    @classmethod
+    def get_floating_ip(cls, ip):
+        floating_ips = cls.manager.get_all_floating_ips()
+        for floating_ip in floating_ips:
+            if floating_ip.ip == ip:
+                return floating_ip
+        return None
 
-    def get_droplet(self, ip):
-        droplets = self.manager.get_all_droplets()
+    @classmethod
+    def get_droplet(cls, ip):
+        droplets = cls.manager.get_all_droplets()
         for droplet in droplets:
             if droplet.ip_address == ip:
                 return droplet
 
-    def poll_action(self,action_id):
+    @classmethod
+    def poll_action(cls, action_id):
         end_time = time.time() + 10
         while time.time() < end_time:
             time.sleep(2)
-            action = digitalocean.Action.get_object(api_token=self.manager.token, action_id=action_id)
-            if action == 'completed':
+            action = digitalocean.Action.get_object(api_token=cls.manager.token, action_id=action_id)
+            if action.status == 'completed':
                 return True
-            elif action == 'errored':
+            elif action.status == 'errored':
                 return False
         return False
 
@@ -113,8 +117,8 @@ def core(module):
             else:
                 module.exit_json(changed=False)
         elif state == 'absent':
-            ip = getkeyordie('floating_ip')
-            data = DOManager.unassign_floating_ip(ip) 
+            floating_ip = getkeyordie('floating_ip')
+            data = DOManager.unassign_floating_ip(floating_ip) 
             if data:
                 module.exit_json(changed=True, floating_ip=data.ip)
             else:
@@ -141,7 +145,6 @@ def main():
             command = dict(choices=['assign', 'reserve']),
             state = dict(choices=['present', 'absent'], default='present'),
             api_token = dict(aliases=['API_TOKEN'], no_log=True),
-            name = dict(type='str'),
             droplet_ip = dict(type='str'),
             region_id = dict(type='str'),
             floating_ip = dict(type='str'),
