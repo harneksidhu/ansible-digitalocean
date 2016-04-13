@@ -3,16 +3,19 @@
 import os
 import time
 from distutils.version import LooseVersion
-import epdb
 import time
 
 HAS_DO = True
 try:
     import digitalocean
+    from digitalocean.baseapi import Error
     if LooseVersion(digitalocean.__version__) < LooseVersion('1.8'):
         HAS_DO = False
 except ImportError:
     HAS_DO = False
+
+class FloatingIPException(Exception):
+    pass
 
 
 class DOManager(object):
@@ -42,7 +45,7 @@ class DOManager(object):
             if cls.poll_action(action_id) == True:
                 return floating_ip
             else:
-                raise Exception('Unable to unassign Floating IP')
+                raise FloatingIPException('Unable to unassign Floating IP')
 
     @classmethod
     def assign_floating_ip(cls, floating_ip, droplet_ip):
@@ -52,16 +55,17 @@ class DOManager(object):
             if floating_ip.droplet != None and floating_ip.droplet['networks']['v4'][0]['ip_address'] == droplet.ip_address:
                 return None
             else:
+                cls.unassign_floating_ip_from_droplet(droplet_ip)
                 action = floating_ip.assign(droplet.id)
                 action_id = action['action']['id']
                 if cls.poll_action(action_id) == True:
                     return floating_ip
                 else:
-                    raise Exception('Unable to assign Floating IP')
+                    raise FloatingIPException('Unable to assign Floating IP')
         elif droplet == None:
-            raise Exception('Droplet is not found')
+            raise FloatingIPException('Droplet is not found')
         elif floating_ip == None:
-            raise Exception('Floating IP is not found')
+            raise FloatingIPException('Floating IP is not found')
        
     @classmethod
     def get_floating_ip(cls, ip):
@@ -89,6 +93,13 @@ class DOManager(object):
             elif action.status == 'errored':
                 return False
         return False
+
+    @classmethod
+    def unassign_floating_ip_from_droplet(self, droplet_ip):
+        floating_ips = self.manager.get_all_floating_ips()
+        for floating_ip in floating_ips:
+            if floating_ip.droplet != None and floating_ip.droplet['networks']['v4'][0]['ip_address'] == droplet_ip:
+                return self.unassign_floating_ip(floating_ip.ip)
 
 def core(module):
     def getkeyordie(k):
@@ -158,11 +169,12 @@ def main():
 
     try:
         core(module)
-    except Exception, e:
+    except FloatingIPException, e:
+        module.fail_json(msg=str(e))
+    except Error, e:
         module.fail_json(msg=str(e))
 
 from ansible.module_utils.basic import *
 
 if __name__ == '__main__':
-#    epdb.serve()
     main()
