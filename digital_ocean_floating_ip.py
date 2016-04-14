@@ -1,5 +1,85 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
+DOCUMENTATION = '''
+---
+module: digital_ocean_floating_ip
+short_description: Reserve/destroy or assign/unassign a floating ip in DigitalOcean
+description:
+     - Reserve/destroy a floating ip in DigitalOcean, or assign/unnasign a floating ip to a droplet. 
+version_added: "2.0"
+author: "Harnek Sidhu"
+options:
+  command:
+    description:
+     - Which operation do you want to perform.
+    choices: ['assign', 'reserve']
+  state:
+    description:
+     - Indicate desired state of the target.
+    default: present
+    choices: ['present', 'absent']
+  api_token:
+    description:
+     - DigitalOcean api token.
+  droplet_ip:
+    description:
+     - String, the droplet ip you want to operate on.
+  floating_ip:
+    description:
+     - String, the floating ip you want to operate on.
+  region_id:
+    description:
+     - This is the slug of the region you would like your floating ip to be reserved in.
+notes:
+  - Two environment variables can be used, DO_API_KEY and DO_API_TOKEN. They both refer to the v2 token.
+requirements:
+  - "python >= 2.6"
+  - "python-digitalocean >= 1.8"
+'''
+
+
+EXAMPLES = '''
+# Reserve a new Floating IP
+# Will return the floating ip address
+- digital_ocean:
+    state: present
+    command: reserve
+    api_token: XXX
+    region_id: ams2
+  register: my_floating_ip
+- debug: msg="IP is {{ my_floating_ip.ip_address }}"
+
+# Destroy a Floating IP
+# If floating ip exists, it will be destroyed and changed = True
+# If floating ip does not exist, module will return and changed = False
+- digital_ocean:
+    state: absent
+    command: reserve
+    api_token: XXX
+    floating_ip: "{{ floating_ip }}"
+
+# Assign a Floating IP to a Droplet
+# The floating ip will be assigned to the droplet and changed = True
+# If floating ip is assigned to the droplet, module will return and changed = False
+- digital_ocean:
+    state: present
+    command: assign
+    api_token: XXX
+    floating_ip: "{{ floating_ip }}"
+    droplet_ip: "{{ droplet_ip }}"
+
+# Unassign a Floating IP from a Droplet
+# If floating ip is assigned to the droplet, it will be unassigend and changed = True
+# If floating ip is not assigned to the droplet, module will return and changed = False
+- digital_ocean:
+    state: absent
+    command: assign
+    api_token: XXX
+    floating_ip: "{{ floating_ip }}"
+
+'''
+
 import os
 import time
 from distutils.version import LooseVersion
@@ -137,8 +217,8 @@ def core(module):
 
     elif command == 'reserve':
         if state == 'present':
-            regionID = getkeyordie('region_id')
-            data = DOManager.reserve_floating_ip(regionID)
+            region_id = getkeyordie('region_id')
+            data = DOManager.reserve_floating_ip(region_id)
             module.exit_json(changed=True, floating_ip=data.ip)
 
         elif state == 'absent':
@@ -157,8 +237,8 @@ def main():
             state = dict(choices=['present', 'absent'], default='present'),
             api_token = dict(aliases=['API_TOKEN'], no_log=True),
             droplet_ip = dict(type='str'),
-            region_id = dict(type='str'),
             floating_ip = dict(type='str'),
+            region_id = dict(type='str'),
         ),
         required_together = (
             ['command', 'state']
