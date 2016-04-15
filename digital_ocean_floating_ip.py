@@ -1,5 +1,22 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+
+# (c) 2016, Harnek Sidhu <h6sidhu@gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+
 
 DOCUMENTATION = '''
 ---
@@ -14,20 +31,22 @@ options:
     description:
      - Which operation do you want to perform.
     choices: ['assign', 'reserve']
+    required: true
   state:
     description:
      - Indicate desired state of the target.
     default: present
     choices: ['present', 'absent']
+    required: true
   api_token:
     description:
      - DigitalOcean api token.
   droplet_ip:
     description:
-     - String, the droplet ip you want to operate on.
+     - The droplet ip you want to operate on.
   floating_ip:
     description:
-     - String, the floating ip you want to operate on.
+     - The floating ip you want to operate on.
   region_id:
     description:
      - This is the slug of the region you would like your floating ip to be reserved in.
@@ -42,18 +61,18 @@ requirements:
 EXAMPLES = '''
 # Reserve a new Floating IP
 # Will return the floating ip address
-- digital_ocean:
+- digital_ocean_floating_ip:
     state: present
     command: reserve
     api_token: XXX
     region_id: ams2
-  register: my_floating_ip
-- debug: msg="IP is {{ my_floating_ip.ip_address }}"
+  register: ip
+- debug: msg="IP is {{ ip.floating_ip }}"
 
 # Destroy a Floating IP
 # If floating ip exists, it will be destroyed and changed = True
 # If floating ip does not exist, module will return and changed = False
-- digital_ocean:
+- digital_ocean_floating_ip:
     state: absent
     command: reserve
     api_token: XXX
@@ -61,8 +80,8 @@ EXAMPLES = '''
 
 # Assign a Floating IP to a Droplet
 # The floating ip will be assigned to the droplet and changed = True
-# If floating ip is assigned to the droplet, module will return and changed = False
-- digital_ocean:
+# If floating ip is already assigned to the droplet, module will return and changed = False
+- digital_ocean_floating_ip:
     state: present
     command: assign
     api_token: XXX
@@ -70,9 +89,9 @@ EXAMPLES = '''
     droplet_ip: "{{ droplet_ip }}"
 
 # Unassign a Floating IP from a Droplet
-# If floating ip is assigned to the droplet, it will be unassigend and changed = True
-# If floating ip is not assigned to the droplet, module will return and changed = False
-- digital_ocean:
+# If floating ip is assigned to a droplet, it will be unassigned and changed = True
+# If floating ip is not assigned to a droplet, module will return and changed = False
+- digital_ocean_floating_ip:
     state: absent
     command: assign
     api_token: XXX
