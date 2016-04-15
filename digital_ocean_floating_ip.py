@@ -24,7 +24,7 @@ module: digital_ocean_floating_ip
 short_description: Reserve/destroy or assign/unassign a floating ip in DigitalOcean
 description:
      - Reserve/destroy a floating ip in DigitalOcean, or assign/unnasign a floating ip to a droplet. 
-version_added: "2.0"
+version_added: "2.1"
 author: "Harnek Sidhu"
 options:
   command:
@@ -96,6 +96,14 @@ EXAMPLES = '''
     command: assign
     api_token: XXX
     floating_ip: "{{ floating_ip }}"
+
+'''
+RETURN = '''
+floating_ip:
+    description: The floating ip that was used in the task 
+    returned: changed
+    type: string
+    sample: "192.168.0.1"
 
 '''
 
